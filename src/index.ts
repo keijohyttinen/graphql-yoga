@@ -50,6 +50,7 @@ export { MockList } from 'graphql-tools'
 export { PubSub, withFilter } from 'graphql-subscriptions'
 export { Options, OptionsWithHttps, OptionsWithoutHttps }
 export { GraphQLServerLambda } from './lambda'
+import * as net from 'net'
 
 // TODO remove once `@types/graphql` is fixed for `execute`
 type ExecuteFunction = (
@@ -66,6 +67,7 @@ type ExecuteFunction = (
 
 export class GraphQLServer {
   express: express.Application
+  server: net.Server
   subscriptionServer: SubscriptionServer | null
   subscriptionServerOptions: SubscriptionServerOptions | null = null
   options: Options = {
@@ -260,10 +262,10 @@ export class GraphQLServer {
           context =
             typeof this.context === 'function'
               ? await this.context({
-                  request,
-                  response,
-                  fragmentReplacements: this.middlewareFragmentReplacements,
-                })
+                request,
+                response,
+                fragmentReplacements: this.middlewareFragmentReplacements,
+              })
               : this.context
         } catch (e) {
           console.error(e)
@@ -329,9 +331,9 @@ export class GraphQLServer {
     if (this.options.playground) {
       const playgroundOptions = this.subscriptionServerOptions
         ? {
-            endpoint: this.options.endpoint,
-            subscriptionsEndpoint: this.subscriptionServerOptions.path,
-          }
+          endpoint: this.options.endpoint,
+          subscriptionsEndpoint: this.subscriptionServerOptions.path,
+        }
         : { endpoint: this.options.endpoint }
 
       app.get(this.options.playground, expressPlayground(playgroundOptions))
@@ -377,7 +379,7 @@ export class GraphQLServer {
 
     return new Promise((resolve, reject) => {
       const combinedServer = server
-      combinedServer.listen(this.options.port, () => {
+      this.server = combinedServer.listen(this.options.port, () => {
         callbackFunc({
           ...this.options,
           port: combinedServer.address().port,
